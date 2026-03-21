@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permute</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0c;--s1:#161615;--s2:#1e1e1d;--b1:#2a2a28;--b2:#3a3a38;
+  --t1:#e8e8e3;--t2:#8a8a84;--t3:#4a4a46;
+  --ac:#c8f04a;--ac2:#a8cc30;--ok:#3fd68a;--er:#f05050;
+}
+body.light{
+  --bg:#f4f3ef;--s1:#ffffff;--s2:#eceae6;--b1:#d4d2cc;--b2:#b8b6b0;
+  --t1:#111110;--t2:#68675f;--t3:#a8a69e;
+  --ac:#4a6800;--ac2:#385000;--ok:#1a7a46;--er:#c82020;
+}
+html{height:100%;background:var(--bg);transition:background .2s}
+html.light{background:var(--bg)}
+body{min-height:100%;background:var(--bg);color:var(--t1);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.5;transition:background .2s,color .2s}
+.wrap{max-width:700px;margin:0 auto;padding:0 20px 60px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;padding:24px 0 26px;border-bottom:1px solid var(--b1);margin-bottom:28px}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;letter-spacing:-0.5px}
+.logo em{font-style:normal;color:var(--ac)}
+#tbtn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--b2);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;transition:border-color .15s}
+#tbtn:hover{border-color:var(--ac)}
+#tbtn svg{width:14px;height:14px;stroke:var(--t2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:stroke .15s}
+#tbtn:hover svg{stroke:var(--ac)}
+
+/* drop */
+.drop{border:1.5px dashed var(--b2);border-radius:8px;background:var(--s1);padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;position:relative;user-select:none}
+.drop.over,.drop:hover{border-color:var(--ac);background:var(--s2)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:26px;margin-bottom:8px;opacity:.3;line-height:1}
+.drop-title{font-size:14px;font-weight:500;margin-bottom:4px}
+.drop-hint{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3)}
+
+/* toolbar */
+.tbar{display:flex;gap:8px;align-items:center;background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:11px 13px;margin:14px 0}
+.src{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;color:var(--t2);background:var(--s2);border:1px solid var(--b1);border-radius:4px;padding:4px 9px;white-space:nowrap;flex-shrink:0}
+.arr{color:var(--t3);font-size:13px;flex-shrink:0}
+.fsel{flex:1;min-width:0;background:var(--s2);border:1px solid var(--b1);border-radius:4px;color:var(--t1);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 26px 5px 9px;appearance:none;cursor:pointer;outline:none;transition:border-color .15s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.fsel:focus{border-color:var(--ac)}
+.fsel option{background:#1a1a19}
+body.light .fsel option{background:#eceae6}
+.gobtn{background:var(--ac);color:#111;border:none;border-radius:4px;padding:6px 16px;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background .15s,opacity .15s;white-space:nowrap}
+.gobtn:hover{background:var(--ac2)}
+.gobtn:disabled{opacity:.3;cursor:not-allowed}
+
+/* queue */
+.qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.qlbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px}
+.qclr{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3);background:none;border:none;cursor:pointer;transition:color .15s;padding:0}
+.qclr:hover{color:var(--er)}
+.qlist{display:flex;flex-direction:column;gap:5px}
+
+/* file row */
+.frow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--b1);border-radius:6px;padding:9px 10px;animation:fi .15s ease;transition:border-color .2s}
+.frow.sdone{border-color:rgba(63,214,138,.25)}
+.frow.serr{border-color:rgba(240,80,80,.25)}
+.frow.sbusy{border-color:rgba(200,240,74,.15)}
+@keyframes fi{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.fext{width:34px;height:34px;border-radius:4px;background:var(--s2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--t2);text-transform:uppercase;font-weight:500;flex-shrink:0;letter-spacing:.3px}
+.finfo{min-width:0}
+.fname{font-size:12px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmeta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3);margin-top:1px}
+.fact{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.st{font-family:'IBM Plex Mono',monospace;font-size:10px}
+.st-idle{color:var(--t3)}
+.st-busy{color:var(--ac);display:flex;align-items:center;gap:5px}
+.st-done{color:var(--ok)}
+.st-err{color:var(--er)}
+.spin{width:10px;height:10px;border:1.5px solid var(--b2);border-top-color:var(--ac);border-radius:50%;animation:sp .55s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.dlbtn{font-family:'IBM Plex Mono',monospace;font-size:10px;border:1px solid var(--ok);color:var(--ok);background:none;border-radius:3px;padding:3px 8px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
+.dlbtn:hover{background:var(--ok);color:#fff}
+.rmbtn{width:20px;height:20px;background:none;border:none;color:var(--t3);cursor:pointer;border-radius:3px;font-size:15px;display:flex;align-items:center;justify-content:center;transition:color .15s;line-height:1;flex-shrink:0;padding:0}
+.rmbtn:hover{color:var(--er)}
+.progwrap{grid-column:1/-1;height:2px;background:var(--b1);border-radius:1px;overflow:hidden}
+.progfill{height:100%;background:var(--ac);border-radius:1px;transition:width .3s;width:0%}
+
+/* stats */
+.stats{display:flex;gap:24px;padding-top:20px;border-top:1px solid var(--b1);margin-top:24px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.sv{font-size:18px;font-weight:600}
+.sk{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px}
+
+/* toast */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--b2);color:var(--t1);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:7px 14px;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;z-index:999}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">per<em>m</em>ute</div>
+  <button id="tbtn" title="toggle theme">
+    <svg id="ico-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" stroke="none"/></svg>
+    <svg id="ico-sun"  viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+</header>
+
+<div class="drop" id="drop">
+  <input type="file" id="fin" multiple accept="image/*,.pdf,.csv,.json,.txt,.md,.html,.htm">
+  <div class="drop-icon">⇣</div>
+  <div class="drop-title">Drop files or click to browse</div>
+  <div class="drop-hint">jpg · png · webp · gif · bmp · pdf · csv · json · txt · md · html</div>
+</div>
+
+<div id="tbar" class="tbar" style="display:none">
+  <div class="src" id="srctag">—</div>
+  <div class="arr">→</div>
+  <select class="fsel" id="fsel"><option value="">choose output…</option></select>
+  <button class="gobtn" id="gobtn" disabled>Convert</button>
+</div>
+
+<div id="qsec" style="display:none">
+  <div class="qhead">
+    <span class="qlbl" id="qlbl">queue</span>
+    <button class="qclr" id="qclr">clear all</button>
+  </div>
+  <div class="qlist" id="qlist"></div>
+</div>
+
+<div id="statsec" class="stats" style="display:none">
+  <div class="stat"><div class="sv" id="sc">0</div><div class="sk">converted</div></div>
+  <div class="stat"><div class="sv" id="sp">0</div><div class="sk">pending</div></div>
+  <div class="stat"><div class="sv" id="ss">—</div><div class="sk">processed</div></div>
+</div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── THEME ──────────────────────────────────────────────────────
+let dark = true;
+document.getElementById('tbtn').onclick = () => {
+  dark = !dark;
+  document.body.classList.toggle('light', !dark);
+  document.documentElement.classList.toggle('light', !dark);
+  document.getElementById('ico-moon').style.display = dark ? '' : 'none';
+  document.getElementById('ico-sun').style.display  = dark ? 'none' : '';
+};
+
+// ── FORMAT MAP ─────────────────────────────────────────────────
+const FMT = {
+  jpg:{label:'JPG',grp:'img',to:['png','webp','pdf']},
+  jpeg:{label:'JPG',grp:'img',to:['png','webp','pdf']},
+  png:{label:'PNG',grp:'img',to:['jpg','webp','pdf']},
+  webp:{label:'WEBP',grp:'img',to:['png','jpg','pdf']},
+  gif:{label:'GIF',grp:'img',to:['png','jpg','pdf']},
+  bmp:{label:'BMP',grp:'img',to:['png','jpg','webp','pdf']},
+  svg:{label:'SVG',grp:'img',to:['png','jpg','pdf']},
+  pdf:{label:'PDF',grp:'pdf',to:['png','jpg']},
+  csv:{label:'CSV',grp:'dat',to:['json','html']},
+  json:{label:'JSON',grp:'dat',to:['csv']},
+  txt:{label:'TXT',grp:'txt',to:['html','json']},
+  md:{label:'MD',grp:'txt',to:['html']},
+  html:{label:'HTML',grp:'txt',to:['txt','md']},
+  htm:{label:'HTML',grp:'txt',to:['txt','md']},
+};
+const TOLBL = {png:'PNG',jpg:'JPG',webp:'WEBP',pdf:'PDF',csv:'CSV',json:'JSON',html:'HTML',txt:'TXT',md:'Markdown'};
+
+// ── STATE ──────────────────────────────────────────────────────
+let items=[], uid=0, nDone=0, nBytes=0;
+
+// ── HELPERS ────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const fmtB=b=>b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB';
+const getExt=n=>n.split('.').pop().toLowerCase();
+const base=n=>n.replace(/\.[^.]+$/,'');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+
+// Read file as data URL (works in ALL contexts including sandboxed iframes)
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Load an <img> from a data URL
+function loadImgFromDataURL(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Image decode failed'));
+    img.src = dataUrl;
+  });
+}
+
+// ── FILE INPUT ─────────────────────────────────────────────────
+const drop=$('drop');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');intake([...e.dataTransfer.files])});
+$('fin').addEventListener('change',function(){intake([...this.files]);this.value=''});
+
+function intake(files){
+  files.forEach(f=>{
+    const ext=getExt(f.name);
+    items.push({id:uid++,file:f,name:f.name,ext,fmt:FMT[ext]||null,status:'idle',results:[],err:''});
+  });
+  render();
+}
+
+// ── RENDER ─────────────────────────────────────────────────────
+function render(){
+  const has=items.length>0;
+  $('tbar').style.display=$('qsec').style.display=$('statsec').style.display=has?'':'none';
+
+  const grps=[...new Set(items.filter(i=>i.fmt).map(i=>i.fmt.grp))];
+  const one=grps.length===1;
+
+  if(one){
+    const allTo=items.filter(i=>i.fmt).map(i=>new Set(i.fmt.to));
+    const common=allTo.reduce((a,b)=>new Set([...a].filter(x=>b.has(x))));
+    const lbls=[...new Set(items.filter(i=>i.fmt).map(i=>i.fmt.label))];
+    $('srctag').textContent=lbls.join('/');
+    const prev=$('fsel').value;
+    $('fsel').innerHTML='<option value="">choose output…</option>';
+    common.forEach(t=>{
+      const o=document.createElement('option');
+      o.value=t;o.textContent=TOLBL[t]||t;
+      if(t===prev)o.selected=true;
+      $('fsel').appendChild(o);
+    });
+  } else {
+    $('srctag').textContent='Mixed';
+    $('fsel').innerHTML='<option value="">select same-type files</option>';
+  }
+
+  $('gobtn').disabled=!$('fsel').value||!one;
+  $('qlbl').textContent=`queue · ${items.length} file${items.length!==1?'s':''}`;
+  $('qlist').innerHTML='';
+  items.forEach(item=>$('qlist').appendChild(makeRow(item)));
+  $('sc').textContent=nDone;
+  $('sp').textContent=items.filter(i=>i.status==='idle').length;
+  $('ss').textContent=fmtB(nBytes);
+}
+
+function makeRow(item){
+  const div=document.createElement('div');
+  div.className='frow'+(item.status==='done'?' sdone':item.status==='err'?' serr':item.status==='busy'?' sbusy':'');
+  div.id='r'+item.id;
+  const extLbl=item.fmt?item.fmt.label:item.ext.slice(0,4).toUpperCase();
+  const meta=item.fmt?`<div class="fmeta">${fmtB(item.file.size)}</div>`:`<div class="fmeta" style="color:var(--er)">unsupported</div>`;
+  let action='';
+  if(item.status==='idle')  action=`<span class="st st-idle">idle</span>`;
+  if(item.status==='busy')  action=`<span class="st st-busy"><span class="spin"></span>working</span>`;
+  if(item.status==='err')   action=`<span class="st st-err" title="${esc(item.err)}">failed</span>`;
+  if(item.status==='done'){
+    if(item.results.length===1) action=`<button class="dlbtn" data-id="${item.id}" data-idx="0">↓ save</button>`;
+    else action=`<button class="dlbtn" data-id="${item.id}" data-idx="all">↓ all (${item.results.length})</button>`;
+  }
+  div.innerHTML=`
+    <div class="fext">${extLbl}</div>
+    <div class="finfo"><div class="fname" title="${esc(item.name)}">${esc(item.name)}</div>${meta}</div>
+    <div class="fact">${action}<button class="rmbtn" data-rmid="${item.id}">×</button></div>
+    ${item.status==='busy'?`<div class="progwrap"><div class="progfill" id="p${item.id}"></div></div>`:''}
+  `;
+  return div;
+}
+
+$('qlist').addEventListener('click',e=>{
+  const dl=e.target.closest('.dlbtn');
+  const rm=e.target.closest('.rmbtn');
+  if(dl){
+    const id=parseInt(dl.dataset.id);
+    const item=items.find(i=>i.id===id);
+    if(!item)return;
+    if(dl.dataset.idx==='all') item.results.forEach(r=>dlFile(r.dataUrl,r.name));
+    else dlFile(item.results[0].dataUrl,item.results[0].name);
+  }
+  if(rm){items=items.filter(i=>i.id!==parseInt(rm.dataset.rmid));render()}
+});
+
+// Download using a data URL anchor — works in sandboxed iframes
+function dlFile(dataUrl,name){
+  const a=document.createElement('a');
+  a.href=dataUrl;a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function updateRow(item){const old=$('r'+item.id);if(old)old.replaceWith(makeRow(item))}
+function setProg(id,pct){const el=$('p'+id);if(el)el.style.width=pct+'%'}
+
+$('fsel').addEventListener('change',()=>$('gobtn').disabled=!$('fsel').value);
+$('qclr').addEventListener('click',()=>{items=[];render()});
+
+// ── CONVERT ────────────────────────────────────────────────────
+$('gobtn').addEventListener('click',async()=>{
+  const target=$('fsel').value;
+  if(!target)return;
+  const pending=items.filter(i=>i.status==='idle'&&i.fmt);
+  if(!pending.length)return;
+  $('gobtn').disabled=true;
+  for(const item of pending){
+    item.status='busy';item.results=[];item.err='';
+    updateRow(item);
+    try{
+      if(item.fmt.grp==='img'){
+        item.results=target==='pdf'?[await imgToPdf(item)]:[await imgToImg(item,target)];
+      } else if(item.fmt.grp==='pdf'){
+        item.results=await pdfToImgs(item,target);
+      } else {
+        item.results=[await textConvert(item,target)];
+      }
+      item.status='done';nDone++;nBytes+=item.file.size;
+    } catch(e){
+      item.status='err';item.err=e.message;
+      console.error('Convert failed:',item.name,e);
+    }
+    updateRow(item);
+  }
+  $('sc').textContent=nDone;
+  $('sp').textContent=items.filter(i=>i.status==='idle').length;
+  $('ss').textContent=fmtB(nBytes);
+  $('gobtn').disabled=!$('fsel').value;
+});
+
+// ── IMAGE → IMAGE ──────────────────────────────────────────────
+async function imgToImg(item, target) {
+  const dataUrl = await fileToDataURL(item.file);
+  const img     = await loadImgFromDataURL(dataUrl);
+  const cv      = document.createElement('canvas');
+  cv.width      = img.naturalWidth;
+  cv.height     = img.naturalHeight;
+  const ctx     = cv.getContext('2d');
+  if(target==='jpg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height)}
+  ctx.drawImage(img,0,0);
+  const mime    = target==='webp'?'image/webp':target==='jpg'?'image/jpeg':'image/png';
+  const out     = cv.toDataURL(mime, 0.92);
+  return {dataUrl:out, name:base(item.name)+'.'+target};
+}
+
+// ── IMAGE → PDF ────────────────────────────────────────────────
+async function imgToPdf(item) {
+  // 1. Read file as data URL (sandbox-safe)
+  const dataUrl = await fileToDataURL(item.file);
+  const img     = await loadImgFromDataURL(dataUrl);
+
+  // 2. Draw to canvas to normalise the image (handles svg, gif, etc.)
+  const cv  = document.createElement('canvas');
+  cv.width  = img.naturalWidth;
+  cv.height = img.naturalHeight;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(img, 0, 0);
+
+  // 3. Get raw JPEG bytes from canvas
+  const jpegDataUrl = cv.toDataURL('image/jpeg', 0.92);
+  const b64   = jpegDataUrl.slice(jpegDataUrl.indexOf(',') + 1);
+  const bin   = atob(b64);
+  const jpgBytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) jpgBytes[i]=bin.charCodeAt(i);
+
+  // 4. Layout: fit image into A4 (595 x 842 pts) with margins
+  const PW=595, PH=842, M=36;
+  const iw=img.naturalWidth, ih=img.naturalHeight;
+  const sc=Math.min((PW-M*2)/iw, (PH-M*2)/ih, 1);
+  const dw=iw*sc, dh=ih*sc;
+  const dx=(PW-dw)/2, dy=(PH-dh)/2;
+
+  // 5. Build PDF objects as plain strings first
+  const cs=`q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${dx.toFixed(2)} ${(PH-dy-dh).toFixed(2)} cm /Im0 Do Q`;
+  const hdr   = '%PDF-1.4\n';
+  const o1    = '1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n';
+  const o2    = '2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n';
+  const o3    = `3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents 4 0 R /Resources <</XObject <</Im0 5 0 R>>>>>>\nendobj\n`;
+  const o4    = `4 0 obj\n<</Length ${cs.length}>>\nstream\n${cs}\nendstream\nendobj\n`;
+  const o5h   = `5 0 obj\n<</Type /XObject /Subtype /Image /Width ${iw} /Height ${ih} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpgBytes.length}>>\nstream\n`;
+  const o5f   = '\nendstream\nendobj\n';
+
+  // 6. Compute byte offsets now that all strings have known lengths
+  const enc = s => { const a=new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i); return a; };
+  const sLen = s => s.length; // ASCII only — length === byte count
+
+  let pos=0;
+  pos+=sLen(hdr);
+  const off1=pos; pos+=sLen(o1);
+  const off2=pos; pos+=sLen(o2);
+  const off3=pos; pos+=sLen(o3);
+  const off4=pos; pos+=sLen(o4);
+  const off5=pos; pos+=sLen(o5h)+jpgBytes.length+sLen(o5f);
+  const xrefPos=pos;
+
+  // 7. Build xref + trailer
+  const pad=n=>String(n).padStart(10,'0');
+  const xref =`xref\n0 6\n0000000000 65535 f \n${pad(off1)} 00000 n \n${pad(off2)} 00000 n \n${pad(off3)} 00000 n \n${pad(off4)} 00000 n \n${pad(off5)} 00000 n \n`;
+  const trail=`trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefPos}\n%%EOF`;
+
+  // 8. Assemble final binary
+  const parts=[enc(hdr),enc(o1),enc(o2),enc(o3),enc(o4),enc(o5h),jpgBytes,enc(o5f),enc(xref),enc(trail)];
+  const total=parts.reduce((s,p)=>s+p.length,0);
+  const out=new Uint8Array(total);
+  let off=0; for(const p of parts){out.set(p,off);off+=p.length;}
+
+  // 9. Convert to base64 data URL (sandbox-safe, no blob URLs)
+  let str='';
+  const chunkSize=8192;
+  for(let i=0;i<out.length;i+=chunkSize){
+    str+=String.fromCharCode(...out.subarray(i,i+chunkSize));
+  }
+  const pdfDataUrl='data:application/pdf;base64,'+btoa(str);
+  return {dataUrl:pdfDataUrl, name:base(item.name)+'.pdf'};
+}
+
+// ── PDF → IMAGES ───────────────────────────────────────────────
+async function pdfToImgs(item, target) {
+  // Load pdf.js dynamically (only when actually needed)
+  if(!window.pdfjsLib) {
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error('pdf.js failed to load. Check your internet connection.'));
+      document.head.appendChild(s);
+    });
+    pdfjsLib.GlobalWorkerOptions.workerSrc=
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const ab  = await item.file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:new Uint8Array(ab)}).promise;
+  const results=[];
+  const mime=target==='jpg'?'image/jpeg':'image/png';
+  const ext2=target==='jpg'?'jpg':'png';
+  const total=pdf.numPages;
+
+  for(let p=1;p<=total;p++){
+    setProg(item.id,Math.round((p-1)/total*90));
+    const page=await pdf.getPage(p);
+    const vp=page.getViewport({scale:2});
+    const cv=document.createElement('canvas');
+    cv.width=vp.width; cv.height=vp.height;
+    const ctx=cv.getContext('2d');
+    if(target==='jpg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height)}
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+    const suffix=total>1?`_p${p}`:'';
+    const dataUrl=cv.toDataURL(mime,0.92);
+    results.push({dataUrl, name:`${base(item.name)}${suffix}.${ext2}`});
+  }
+  setProg(item.id,100);
+  return results;
+}
+
+// ── TEXT / DATA CONVERTERS ─────────────────────────────────────
+async function textConvert(item, target) {
+  const text = await item.file.text();
+  const b    = base(item.name);
+  const src  = item.ext==='htm'?'html':item.ext;
+  let out,mime,ext;
+
+  if(src==='csv'&&target==='json'){
+    const rows=parseCSV(text), hdrs=rows[0]||[];
+    const data=rows.slice(1).map(row=>{const o={};hdrs.forEach((h,i)=>{o[h.trim()]=(row[i]||'').trim()});return o});
+    out=JSON.stringify(data,null,2);mime='application/json';ext='json';
+
+  } else if(src==='csv'&&target==='html'){
+    const rows=parseCSV(text), hdrs=rows[0]||[];
+    const thead=hdrs.map(h=>`<th>${esc(h)}</th>`).join('');
+    const tbody=rows.slice(1).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+    out=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font:13px monospace;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 10px;text-align:left}th{background:#333;color:#fff}</style></head><body><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></body></html>`;
+    mime='text/html';ext='html';
+
+  } else if(src==='json'&&target==='csv'){
+    let data; try{data=JSON.parse(text)}catch{throw new Error('Invalid JSON')}
+    if(!Array.isArray(data))data=[data];
+    const keys=[...new Set(data.flatMap(o=>Object.keys(o)))];
+    const csvRows=[keys.join(','),...data.map(o=>keys.map(k=>csvCell(String(o[k]??''))).join(','))];
+    out=csvRows.join('\n');mime='text/csv';ext='csv';
+
+  } else if(src==='md'&&target==='html'){
+    out=htmlWrap(mdToHtml(text));mime='text/html';ext='html';
+
+  } else if(src==='txt'&&target==='html'){
+    out=htmlWrap(text.split(/\n{2,}/).map(p=>`<p>${esc(p).replace(/\n/g,'<br>')}</p>`).join(''));
+    mime='text/html';ext='html';
+
+  } else if(src==='txt'&&target==='json'){
+    out=JSON.stringify({lines:text.split('\n')},null,2);mime='application/json';ext='json';
+
+  } else if(src==='html'&&target==='txt'){
+    const d=document.createElement('div');d.innerHTML=text;
+    out=(d.innerText||d.textContent||'').trim();mime='text/plain';ext='txt';
+
+  } else if(src==='html'&&target==='md'){
+    out=htmlToMd(text);mime='text/markdown';ext='md';
+
+  } else { throw new Error(`No converter: ${src} → ${target}`); }
+
+  // Convert text to base64 data URL
+  const blob = new Blob([out],{type:mime});
+  const fr   = new FileReader();
+  const dataUrl = await new Promise((res,rej)=>{fr.onload=e=>res(e.target.result);fr.onerror=rej;fr.readAsDataURL(blob)});
+  return {dataUrl, name:`${b}.${ext}`};
+}
+
+// ── TEXT UTILS ─────────────────────────────────────────────────
+function parseCSV(text){
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){if(q&&text[i+1]==='"'){cell+='"';i++}else q=!q}
+    else if(c===','&&!q){row.push(cell);cell=''}
+    else if((c==='\n'||c==='\r')&&!q){
+      row.push(cell);cell='';
+      if(row.some(x=>x.trim()))rows.push(row);
+      row=[];if(c==='\r'&&text[i+1]==='\n')i++;
+    } else cell+=c;
+  }
+  if(cell||row.length){row.push(cell);if(row.some(x=>x.trim()))rows.push(row)}
+  return rows;
+}
+function csvCell(v){return(v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:`${v}`}
+function htmlWrap(body){return`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Georgia,serif;max-width:700px;margin:40px auto;line-height:1.8;padding:0 20px}code{background:#f0f0f0;padding:2px 5px;border-radius:3px}</style></head><body>${body}</body></html>`}
+function mdToHtml(md){
+  let h=md
+    .replace(/^###### (.+)$/gm,'<h6>$1</h6>').replace(/^##### (.+)$/gm,'<h5>$1</h5>')
+    .replace(/^#### (.+)$/gm,'<h4>$1</h4>').replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>').replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2">$1</a>')
+    .replace(/^[-*+] (.+)$/gm,'<li>$1</li>');
+  h=h.replace(/(<li>.*?<\/li>\n?)+/g,m=>`<ul>${m}</ul>`);
+  h=h.replace(/^(?!<[hul])(.+)$/gm,'<p>$1</p>');
+  return h;
+}
+function htmlToMd(html){
+  return html
+    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi,(_,n,t)=>'#'.repeat(+n)+' '+t.replace(/<[^>]+>/g,'')+'\n\n')
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi,'**$1**').replace(/<em[^>]*>([\s\S]*?)<\/em>/gi,'*$1*')
+    .replace(/<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,'[$2]($1)')
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi,'- $1\n').replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi,'$1\n\n').replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&quot;/g,'"')
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+</script>
+</body>
+</html>
