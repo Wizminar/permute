@@ -1,0 +1,10 @@
+{
+  "name": "Permute",
+  "short_name": "Permute",
+  "description": "Convert files in your browser without uploading them.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d0d0c",
+  "theme_color": "#0d0d0c",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }, { "src": "favicon.ico", "sizes": "48x48 32x32 16x16", "type": "image/x-icon" }]
+}
