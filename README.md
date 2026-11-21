@@ -35,7 +35,7 @@ Several images or PDFs going to PDF can be combined into one file. The site is d
 
 - **No upload.** Files are read into memory by JavaScript in the tab, converted there, and offered back as a download from a local `blob:` URL.
 - **No third-party code at runtime.** Every library is served from this site (`vendor/`). No CDNs, no analytics, no web fonts from elsewhere.
-- **Enforced, not promised.** The page ships a Content Security Policy (`default-src 'self'`, `connect-src 'self' data: blob:`), so the page itself can't open a connection to any other host even if a library tried.
+- **Enforced, not promised.** The page ships a Content Security Policy (`default-src 'self'`, `connect-src 'self' data: blob:`), so the page itself can't open a connection to any other host even if a library tried. On Netlify the same policy is also sent as a header, along with `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `no-referrer` and a restrictive `Permissions-Policy` (see `_headers`).
 - **Checkable.** Open the network panel and convert something: you'll see no request carrying your file. Or load the page, turn off Wi‑Fi, and keep converting. A service worker caches the app so it also works offline after the first visit.
 
 ## Trust boundaries
@@ -46,8 +46,17 @@ Untrusted input is handled defensively too:
 
 - PDFs are rendered by pdf.js with `isEvalSupported: false` (the CVE-2024-4367 class of bugs).
 - HTML, Markdown and Word content is sanitised with DOMPurify and parsed into inert documents. Scripts, event handlers, forms and iframes are stripped, and only `http(s):` and `mailto:` links survive into the output.
-- SVGs are rasterised through `<img>`, which never runs scripts inside them.
+- SVGs are rasterised through `<img>`, which never runs scripts inside them or loads what they link to.
+- HTML files Permute generates carry their own Content Security Policy, so they can't run scripts, embed frames or submit forms wherever they're opened later.
+- CSV and TSV output neutralises spreadsheet formula injection: text cells starting with `=`, `+`, `-`, `@`, tab or CR get a leading `'` so Excel doesn't run them. Plain numbers such as `-5` are untouched.
+- ZIPs are checked before extraction and refused if they would unpack to more than 1 GB or 10,000 files (ZIP bombs).
+- YAML alias expansion is capped (billion-laughs style files are refused), and XML external entities are never resolved.
+- ZIP entry paths are reduced to file names, so `../` entries can't point anywhere else.
 - WebAssembly is allowed (`'wasm-unsafe-eval'`) but JavaScript `eval` is not.
+
+### How this was tested
+
+Every conversion was run against real files, then against hostile ones: a file named `"><img src=x onerror=…>.jpg`, SVG and HTML with scripts, event handlers, iframes, forms and remote resources, Markdown with `javascript:` and `data:` links, XXE and entity-expansion XML, a YAML alias bomb, JSON with `__proto__` keys and formula payloads, a path-traversal ZIP, a 1.3 GB ZIP bomb and a corrupt PDF. Nothing executed in the page, and no request left the site's own origin. The only console noise is the browser reporting the policy blocking those payloads.
 
 ## How it works
 
@@ -68,6 +77,7 @@ js/engines/document.js  Word/Markdown/HTML/text to blocks, then to PDF/Word/HTML
 js/engines/data.js    spreadsheets, CSV, JSON, YAML, XML
 js/engines/media.js   audio and video through WebCodecs
 sw.js                 offline cache
+_headers              security headers for Netlify
 manifest.webmanifest  install as an app
 vendor/               third-party libraries, unmodified
 ```
@@ -86,6 +96,8 @@ Then open http://localhost:5173.
 
 It's a static site: upload the folder as-is to any static host (Netlify, GitHub Pages, Cloudflare Pages). There is no build command, and the publish directory is the repository root. HTTPS is needed for the offline cache.
 
+On Netlify: link the site to this GitHub repository (Site configuration → Build & deploy → Link repository), branch `main`, leave the build command empty and set the publish directory to `/`. `_headers` is picked up automatically. On other hosts, copy those headers into the host's own config.
+
 When you change anything in `vendor/`, bump `VERSION` at the top of `sw.js` so returning visitors get the new library files. App code (`js/`, `assets/app.css`, `index.html`) is fetched network-first, so it updates without a bump.
 
 ## Browser support
@@ -100,6 +112,8 @@ Current Chrome, Edge, Safari and Firefox. Images, PDFs, documents, data and ZIP 
 - Old binary `.doc` files aren't supported. Save them as `.docx` first.
 - Video → GIF takes the first 5 to 30 seconds at 12 frames per second.
 - Some audio/video formats depend on browser encoders (AAC for M4A, for example). Firefox currently has the fewest.
+- ZIPs that unpack to more than 1 GB are refused on purpose.
+- Converted HTML and Markdown keep remote image links from the original document; opening those files later will load the images like any web page would.
 
 ## Libraries
 
