@@ -4,6 +4,9 @@ import { canonical } from '../formats.js';
 
 const TREE = new Set(['json', 'yaml', 'xml']);
 
+/** Generated HTML files can't run scripts, embed frames or submit forms, wherever they're opened. */
+export const OUTPUT_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline'">`;
+
 // ── XML <-> plain objects ───────────────────────────────────────────────────
 
 function xmlToObject(text) {
@@ -101,9 +104,45 @@ async function parseTree(file, ext) {
   }
   if (ext === 'yaml') {
     const yaml = await loadModule('js-yaml.min.mjs');
-    try { return yaml.load(text, { schema: yaml.JSON_SCHEMA }); } catch (e) { throw new UserError(`This YAML has a syntax error: ${e.reason || e.message}`); }
+    let value;
+    try { value = yaml.load(text, { schema: yaml.JSON_SCHEMA, maxAliases: 1000 }); } catch (e) { throw new UserError(`This YAML has a syntax error: ${e.reason || e.message}`); }
+    assertReasonableSize(value);
+    return value;
   }
   return xmlToObject(text);
+}
+
+/**
+ * YAML aliases can make a few bytes expand into billions of values ("billion laughs").
+ * Count nodes as they'd be written out, following shared references, and stop early.
+ */
+const MAX_NODES = 2_000_000;
+function assertReasonableSize(root) {
+  let count = 0;
+  const stack = [root];
+  while (stack.length) {
+    const v = stack.pop();
+    if (++count > MAX_NODES) throw new UserError('This file expands into far too much data to convert safely (it may be a YAML alias bomb).');
+    if (v && typeof v === 'object') for (const k in v) stack.push(v[k]);
+  }
+}
+
+/**
+ * Spreadsheet apps run cells that start with = + - @ (or tab/CR) as formulas, so a CSV
+ * made from untrusted data could execute =HYPERLINK(...) or DDE payloads when opened.
+ * Prefix those text cells with ' (OWASP's advice). Plain numbers like -5 are left alone.
+ */
+const FORMULA_START = /^[=+\-@\t\r]/;
+const PLAIN_NUMBER = /^[+-]?(\d+([.,]\d+)*|\d*\.\d+)([eE][+-]?\d+)?%?$/;
+const neutralise = (v) => (FORMULA_START.test(v) && !PLAIN_NUMBER.test(v) ? `'${v}` : v);
+
+function sheetToDelimited(XLSX, ws, sep) {
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '', blankrows: false });
+  const quote = (v) => (v.includes(sep) || v.includes('"') || v.includes('\n') || v.includes('\r') ? `"${v.replace(/"/g, '""')}"` : v);
+  return rows.map((r) => r.map((c) => {
+    const v = neutralise(String(c ?? ''));
+    return sep === '\t' ? v.replace(/[\t\r\n]+/g, ' ') : quote(v);
+  }).join(sep)).join('\n');
 }
 
 async function writeTree(value, target) {
@@ -160,11 +199,11 @@ export async function convertData(file, target, opts, progress) {
   for (const s of sheets) {
     const ws = wb.Sheets[s];
     let text;
-    if (target === 'csv') text = `\uFEFF${XLSX.utils.sheet_to_csv(ws, { blankrows: false })}`; // BOM so Excel reads UTF-8
-    else if (target === 'tsv') text = XLSX.utils.sheet_to_csv(ws, { FS: '\t', blankrows: false });
+    if (target === 'csv') text = `\uFEFF${sheetToDelimited(XLSX, ws, ',')}`; // BOM so Excel reads UTF-8
+    else if (target === 'tsv') text = sheetToDelimited(XLSX, ws, '\t');
     else if (target === 'html') {
       const table = XLSX.utils.sheet_to_html(ws, { header: '', footer: '' });
-      text = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(s)}</title><style>body{font:14px system-ui,sans-serif;margin:2rem}table{border-collapse:collapse}td{border:1px solid #ccc;padding:.35rem .6rem}tr:first-child td{font-weight:600;background:#f3f3f3}</style></head><body>${table}</body></html>\n`;
+      text = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">${OUTPUT_CSP}<title>${escapeHtml(s)}</title><style>body{font:14px system-ui,sans-serif;margin:2rem}table{border-collapse:collapse}td{border:1px solid #ccc;padding:.35rem .6rem}tr:first-child td{font-weight:600;background:#f3f3f3}</style></head><body>${table}</body></html>\n`;
     } else {
       const rows = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
       text = await writeTree(target === 'xml' ? { rows: { row: rows } } : rows, target);

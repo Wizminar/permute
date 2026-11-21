@@ -84,9 +84,20 @@ async function zipFiles(files, name, progress) {
   return [await zipBlobs(files.map((f) => ({ blob: f, name: f.name })), name, progress)];
 }
 
+const UNZIP_MAX_BYTES = 1024 ** 3; // 1 GB unpacked
+const UNZIP_MAX_FILES = 10_000;
+
 async function unzip(file, progress) {
   const { unzip: fflateUnzip } = await loadModule('fflate.mjs');
   const buf = new Uint8Array(await file.arrayBuffer());
+  // Read the sizes the ZIP declares before inflating anything, so a ZIP bomb is refused
+  // instead of exhausting memory. fflate inflates into a buffer of exactly the declared
+  // size, so an entry can't secretly grow past it.
+  let total = 0; let count = 0;
+  await new Promise((res, rej) => fflateUnzip(buf, { filter: (f) => { total += f.originalSize; count++; return false; } }, (err) => (err ? rej(new UserError("This ZIP couldn't be opened. It may be damaged or encrypted.")) : res())));
+  if (total > UNZIP_MAX_BYTES || count > UNZIP_MAX_FILES) {
+    throw new UserError(`This ZIP unpacks to ${count} ${count === 1 ? "file" : "files"} and ${(total / 1024 ** 3).toFixed(1)} GB, which is more than a browser tab can safely hold.`);
+  }
   const entries = await new Promise((res, rej) => fflateUnzip(buf, (err, out) => (err ? rej(new UserError("This ZIP couldn't be opened. It may be damaged or encrypted.")) : res(out))));
   const out = Object.entries(entries)
     .filter(([path, bytes]) => !path.endsWith('/') && !/(^|\/)(__MACOSX|\.DS_Store)/.test(path) && bytes.length)

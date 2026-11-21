@@ -1,7 +1,7 @@
 // Offline support: the app shell is cached on install, the conversion
 // libraries are cached in the background, and libraries are served
 // cache-first while app code is network-first. Bump VERSION when vendor files change.
-const VERSION = 'permute-v2.2.0';
+const VERSION = 'permute-v2.3.0';
 
 const SHELL = [
   './',

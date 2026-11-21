@@ -181,7 +181,9 @@ h1,h2,h3,h4{font-family:system-ui,sans-serif;line-height:1.25}img{max-width:100%
 pre{padding:1rem;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}
 blockquote{margin:0;padding-left:1rem;border-left:3px solid #ccc;color:#555}`;
 
-const wrapHtml = (body, title) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>${escapeHtml(title)}</title>\n<style>${DOC_CSS}</style>\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
+// Generated HTML can't run scripts, embed frames or submit forms, wherever it's opened later.
+const OUTPUT_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline'">`;
+const wrapHtml = (body, title) => `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n${OUTPUT_CSP}\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>${escapeHtml(title)}</title>\n<style>${DOC_CSS}</style>\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
 
 async function bodyToMarkdown(body) {
   const { default: TurndownService } = await loadModule('turndown.mjs');
