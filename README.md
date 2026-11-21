@@ -4,7 +4,7 @@
 
 Convert files in your browser without uploading them.
 
-**Live:** [permute.mohitupawar.com](https://permute.mohitupawar.com/)
+**Live:** [permute.wizminar.com](https://permute.wizminar.com/) · [permute.mohitupawar.com](https://permute.mohitupawar.com/)
 
 Drop a HEIC photo, a Word document, a spreadsheet or a video onto the page, pick what it should become, and save the result. The conversion runs inside the browser tab. No file is ever sent anywhere.
 
@@ -96,7 +96,7 @@ Then open http://localhost:5173.
 
 It's a static site: upload the folder as-is to any static host (Netlify, GitHub Pages, Cloudflare Pages). There is no build command, and the publish directory is the repository root. HTTPS is needed for the offline cache.
 
-On Netlify: link the site to this GitHub repository (Site configuration → Build & deploy → Link repository), branch `main`, leave the build command empty and set the publish directory to `/`. `_headers` is picked up automatically. On other hosts, copy those headers into the host's own config.
+The live site runs on Netlify at `permute.wizminar.com` and `permute.mohitupawar.com`. On Netlify: link the site to this GitHub repository (Site configuration → Build & deploy → Link repository), branch `main`, leave the build command empty and set the publish directory to `/`. `_headers` is picked up automatically. On other hosts, copy those headers into the host's own config.
 
 When you change anything in `vendor/`, bump `VERSION` at the top of `sw.js` so returning visitors get the new library files. App code (`js/`, `assets/app.css`, `index.html`) is fetched network-first, so it updates without a bump.
 
